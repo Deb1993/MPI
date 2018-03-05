@@ -17,6 +17,8 @@
 #include "Plotting.h"
 #include "cblock.h"
 #include <emmintrin.h>
+#ifdef _MPI_
+#endif
 using namespace std;
 
 void repNorms(double l2norm, double mx, double dt, int m,int n, int niter, int stats_freq);
@@ -54,6 +56,7 @@ void solve(double **_E, double **_E_prev, double *R, double alpha, double dt, Pl
  int m = cb.m, n=cb.n;
  int innerBlockRowStartIndex = (n+2)+1;
  int innerBlockRowEndIndex = (((m+2)*(n+2) - 1) - (n)) - (n+2);
+ int rank =0, np=1;
 
 
  // We continue to sweep over the mesh until the simulation has reached
