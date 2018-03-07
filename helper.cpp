@@ -8,8 +8,20 @@
 #include <assert.h>
 // Needed for memalign
 #include <malloc.h>
+#include "cblock.h"
 
 using namespace std;
+
+#ifdef _MPI_
+#include <mpi.h>
+#endif
+
+#define E_prev(i,j) E_prev[(i)*(n+2)+j]
+#define R(i,j) R[(i)*(n+2)+j]
+#define E(i,j) E[(i)*(n+2)+j]
+
+
+extern control_block cb;
 
 void printMat(const char mesg[], double *E, int m, int n);
 
@@ -24,63 +36,193 @@ void printMat(const char mesg[], double *E, int m, int n);
 // be mapped to appropriate local indices when parallelizing the code
 //
 void init (double *E,double *E_prev,double *R,int m,int n){
-    int i;
+	//#ifdef _MPI_
+	//MPI_Init(&argc,&argv);
+	//#endif
+	int i;
+	int nprocs,myrank;
 
-    for (i=0; i < (m+2)*(n+2); i++)
-        E_prev[i] = R[i] = 0;
+	for (i=0; i < (m+2)*(n+2); i++)
+		E_prev[i] = R[i] = 0;
 
-    for (i = (n+2); i < (m+1)*(n+2); i++) {
-	int colIndex = i % (n+2);		// gives the base index (first row's) of the current index
+	for (i = (n+2); i < (m+1)*(n+2); i++) {
+		int colIndex = i % (n+2);		// gives the base index (first row's) of the current index
 
-        // Need to compute (n+1)/2 rather than n/2 to work with odd numbers
-	if(colIndex == 0 || colIndex == (n+1) || colIndex < ((n+1)/2+1))
-	    continue;
+		// Need to compute (n+1)/2 rather than n/2 to work with odd numbers
+		if(colIndex == 0 || colIndex == (n+1) || colIndex < ((n+1)/2+1))
+			continue;
 
-        E_prev[i] = 1.0;
-    }
+		E_prev[i] = 1.0;
+	}
 
-    for (i = 0; i < (m+2)*(n+2); i++) {
-	int rowIndex = i / (n+2);		// gives the current row number in 2D array representation
-	int colIndex = i % (n+2);		// gives the base index (first row's) of the current index
+	for (i = 0; i < (m+2)*(n+2); i++) {
+		int rowIndex = i / (n+2);		// gives the current row number in 2D array representation
+		int colIndex = i % (n+2);		// gives the base index (first row's) of the current index
 
-        // Need to compute (m+1)/2 rather than m/2 to work with odd numbers
-	if(colIndex == 0 || colIndex == (n+1) || rowIndex < ((m+1)/2+1))
-	    continue;
+		// Need to compute (m+1)/2 rather than m/2 to work with odd numbers
+		if(colIndex == 0 || colIndex == (n+1) || rowIndex < ((m+1)/2+1))
+			continue;
 
-        R[i] = 1.0;
-    }
-    // We only print the meshes if they are small enough
+		R[i] = 1.0;
+	}
+	// We only print the meshes if they are small enough
 #if 0
-    printMat("E_prev",E_prev,m,n);
-    printMat("R",R,m,n);
+	printMat("E_prev",E_prev,m,n);
+	printMat("R",R,m,n);
 #endif
+
+
+#ifdef _MPI_
+	MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
+	MPI_Comm_rank(MPI_COMM_WORLD,&myrank);
+
+	double *E_copy, *E_prev_copy, *R_copy;
+	int rows,cols,incr_row,incr_col,incr_px,incr_py;
+	E_copy = E;
+	E_prev_copy = E_prev;
+	R_copy = R;
+	incr_px = cb.px;
+	incr_py = cb.py;
+	rows = (n+2)/cb.px;
+	cols = (n+2)/cb.py;
+	incr_row = (n+2)%(cb.px);
+	incr_col = (n+2)%(cb.py);
+	incr_px--;
+	if(incr_row) {
+		rows++;
+		incr_row--;
+	}
+	if(incr_col) {
+		cols++;
+		incr_col--;
+	}
+
+	if(incr_px != 0) {
+	E_prev = E_prev + cols;
+	R = R + cols;
+	E = E + cols;
+	}
+	else { 
+	incr_py--;
+	if(incr_py != 0) {
+		E_copy = E_copy + rows;
+		E_prev_copy = E_prev_copy + rows;
+		R_copy = R_copy + rows;
+		E_prev = E_prev_copy;
+		R = R_copy;
+		E = E_copy;
+		}
+	else {
+		return;
+		}	
+	}
+
+	double* buffer_E_prev = (double*)malloc(rows*cols*sizeof(double));	
+	double* buffer_R = (double*)malloc(rows*cols*sizeof(double));	
+	double* buffer_E = (double*)malloc(rows*cols*sizeof(double));	
+	
+	if(myrank == 0) {
+		for( int rank = 1 ; rank < nprocs ; rank++) {
+			int rows,cols;
+			rows = (n+2)/cb.px;
+			cols = (n+2)/cb.py;
+			if(incr_row) {
+				rows++;
+				incr_row--;
+			}
+			if(incr_col) {
+				cols++;
+				incr_col--;
+			}
+			
+			if(rank != 1) {
+				incr_px--;
+				if(incr_px != 0) {
+				E_prev = E_prev + cols;
+				R = R + cols;
+				E = E + cols;
+				}
+				else { 
+				incr_py--;
+				if(incr_py != 0) {
+					E_copy = E_copy + rows;
+					E_prev_copy = E_prev_copy + rows;
+					R_copy = R_copy + rows;
+					E_prev = E_prev_copy;
+					R = R_copy;
+					E = E_copy;
+					}
+				else {
+					break;
+					}	
+				}
+			}
+			
+
+			for(int ii = 0 ; ii < min(rows,n+2-ii) ; ii+=1) {
+				for(int jj = 0 ; jj < min(cols,n+2-jj) ; jj+=1) {
+					buffer_E_prev[ii*rows+jj] = E_prev(ii,jj);
+					buffer_R[ii*rows+jj] = R(ii,jj);
+					buffer_E[ii*rows+jj] = E(ii,jj);
+				}
+			}
+			MPI_Send(buffer_E_prev,rows*cols,MPI_DOUBLE,rank,0,MPI_COMM_WORLD);
+			MPI_Send(buffer_R,rows*cols,MPI_DOUBLE,rank,1,MPI_COMM_WORLD);
+			MPI_Send(buffer_E,rows*cols,MPI_DOUBLE,rank,2,MPI_COMM_WORLD);
+	
+			//MPI_Wait(buffer_E_prev,sizeof(double),MPI_DOUBLE,rank,0,MPI_COMM_WORLD);
+			//MPI_Wait(buffer_R,sizeof(double),MPI_DOUBLE,rank,1,MPI_COMM_WORLD);
+			//MPI_Wait(buffer_E,sizeof(double),MPI_DOUBLE,rank,2,MPI_COMM_WORLD);
+		}
+	}
+	else {
+		MPI_Recv(buffer_E_prev,rows*cols,MPI_DOUBLE,0,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+		MPI_Recv(buffer_R,rows*cols,MPI_DOUBLE,0,1,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+		MPI_Recv(buffer_E,rows*cols,MPI_DOUBLE,0,2,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+			
+		//MPI_Wait(buffer_E_prev,sizeof(double),MPI_DOUBLE,rank,0,MPI_COMM_WORLD);
+		//MPI_Wait(buffer_R,sizeof(double),MPI_DOUBLE,rank,1,MPI_COMM_WORLD);
+		//MPI_Wait(buffer_E,sizeof(double),MPI_DOUBLE,rank,2,MPI_COMM_WORLD);
+	}	
+
+#endif
+
+//#ifdef _MPI_
+//MPI_Finalize();
+//#endif
+
 }
 
 double *alloc1D(int m,int n){
-    int nx=n, ny=m;
-    double *E;
-    // Ensures that allocatdd memory is aligned on a 16 byte boundary
-    assert(E= (double*) memalign(16, sizeof(double)*nx*ny) );
-    return(E);
+	int nx=n, ny=m;
+	double *E;
+	// Ensures that allocatdd memory is aligned on a 16 byte boundary
+	assert(E= (double*) memalign(16, sizeof(double)*nx*ny) );
+	return(E);
 }
 
+
+
+
+
+
 void printMat(const char mesg[], double *E, int m, int n){
-    int i;
+	int i;
 #if 0
-    if (m>8)
-      return;
+	if (m>8)
+		return;
 #else
-    if (m>34)
-      return;
+	if (m>34)
+		return;
 #endif
-    printf("%s\n",mesg);
-    for (i=0; i < (m+2)*(n+2); i++){
-       int rowIndex = i / (n+2);
-       int colIndex = i % (n+2);
-       if ((colIndex>0) && (colIndex<n+1))
-          if ((rowIndex > 0) && (rowIndex < m+1))
-            printf("%6.3f ", E[i]);
-       if (colIndex == n+1)
-	    printf("\n");
-    }
+	printf("%s\n",mesg);
+	for (i=0; i < (m+2)*(n+2); i++){
+		int rowIndex = i / (n+2);
+		int colIndex = i % (n+2);
+		if ((colIndex>0) && (colIndex<n+1))
+			if ((rowIndex > 0) && (rowIndex < m+1))
+				printf("%6.3f ", E[i]);
+		if (colIndex == n+1)
+			printf("\n");
+	}
 }
