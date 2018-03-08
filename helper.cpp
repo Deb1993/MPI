@@ -63,6 +63,7 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 		if(colIndex == 0 || colIndex == (n+1) || rowIndex < ((m+1)/2+1))
 			continue;
 
+		//cout << "E_prev matrix all = " << E_prev[i] <<endl;
 		R[i] = 1.0;
 	}
 	// We only print the meshes if they are small enough
@@ -70,7 +71,6 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 	printMat("E_prev",E_prev,m,n);
 	printMat("R",R,m,n);
 #endif
-
 
 #ifdef _MPI_
 	MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
@@ -83,18 +83,18 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 	R_copy = R;
 	incr_px = cb.px;
 	incr_py = cb.py;
-	rows = (n+2)/cb.px;
-	cols = (n+2)/cb.py;
-	incr_row = (n+2)%(cb.px);
-	incr_col = (n+2)%(cb.py);
+	rows = (n+2)/cb.py;
+	cols = (n+2)/cb.px;
+	incr_row = (n+2)%(cb.py);
+	incr_col = (n+2)%(cb.px);
 	incr_px--;
-	if(incr_row) {
+	if(incr_row > cb.py - incr_py) {
 		rows++;
-		incr_row--;
+		//incr_row--;
 	}
-	if(incr_col) {
+	if(incr_col > cb.px - incr_px) {
 		cols++;
-		incr_col--;
+		//incr_col--;
 	}
 
 	if(incr_px != 0) {
@@ -123,27 +123,29 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 	
 	if(myrank == 0) {
 		for( int rank = 1 ; rank < nprocs ; rank++) {
-			int rows,cols;
-			rows = (n+2)/cb.px;
-			cols = (n+2)/cb.py;
-			if(incr_row) {
-				rows++;
-				incr_row--;
-			}
-			if(incr_col) {
-				cols++;
-				incr_col--;
-			}
-			
+		//	int rows,cols;
+		//	rows = (n+2)/cb.py;
+		//	cols = (n+2)/cb.px;
+		//	if(incr_row) {
+		//		rows++;
+		//		incr_row--;
+		//	}
+		//	if(incr_col) {
+		//		cols++;
+		//		incr_col--;
+		//	}
 			if(rank != 1) {
 				incr_px--;
+				//cout << "incr_px = "<<incr_px<<endl;
 				if(incr_px != 0) {
 				E_prev = E_prev + cols;
 				R = R + cols;
 				E = E + cols;
 				}
-				else { 
+				else {
+				incr_px = cb.px; 
 				incr_py--;
+				//cout << "incr_py = "<<incr_py<<endl;
 				if(incr_py != 0) {
 					E_copy = E_copy + rows;
 					E_prev_copy = E_prev_copy + rows;
@@ -153,19 +155,33 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 					E = E_copy;
 					}
 				else {
+					//cout << "Break"<<endl;
 					break;
 					}	
 				}
 			}
 			
+			int rows,cols;
+			rows = (n+2)/cb.py;
+			cols = (n+2)/cb.px;
+			if(incr_row > cb.py - incr_py) {
+				rows++;
+				//incr_row--;
+			}
+			if(incr_col > cb.px - incr_px) {
+				cols++;
+				//incr_col--;
+			}
 
 			for(int ii = 0 ; ii < min(rows,n+2-ii) ; ii+=1) {
 				for(int jj = 0 ; jj < min(cols,n+2-jj) ; jj+=1) {
-					buffer_E_prev[ii*rows+jj] = E_prev(ii,jj);
-					buffer_R[ii*rows+jj] = R(ii,jj);
-					buffer_E[ii*rows+jj] = E(ii,jj);
+					//cout << "ii = " << ii << " " << "jj = " << jj <<endl;
+					buffer_E_prev[ii*cols+jj] = E_prev(ii,jj);
+					buffer_R[ii*cols+jj] = R(ii,jj);
+					buffer_E[ii*cols+jj] = E(ii,jj);
 				}
 			}
+			//cout<< "MPI_SEND"<<endl;
 			MPI_Send(buffer_E_prev,rows*cols,MPI_DOUBLE,rank,0,MPI_COMM_WORLD);
 			MPI_Send(buffer_R,rows*cols,MPI_DOUBLE,rank,1,MPI_COMM_WORLD);
 			MPI_Send(buffer_E,rows*cols,MPI_DOUBLE,rank,2,MPI_COMM_WORLD);
@@ -173,9 +189,11 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 			//MPI_Wait(buffer_E_prev,sizeof(double),MPI_DOUBLE,rank,0,MPI_COMM_WORLD);
 			//MPI_Wait(buffer_R,sizeof(double),MPI_DOUBLE,rank,1,MPI_COMM_WORLD);
 			//MPI_Wait(buffer_E,sizeof(double),MPI_DOUBLE,rank,2,MPI_COMM_WORLD);
+		//cout<< "rank = "<<rank<<endl;
 		}
 	}
 	else {
+		//cout<< "MPI_RCV"<<endl;
 		MPI_Recv(buffer_E_prev,rows*cols,MPI_DOUBLE,0,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 		MPI_Recv(buffer_R,rows*cols,MPI_DOUBLE,0,1,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 		MPI_Recv(buffer_E,rows*cols,MPI_DOUBLE,0,2,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
