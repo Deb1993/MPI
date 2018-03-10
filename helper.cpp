@@ -16,9 +16,9 @@ using namespace std;
 #include <mpi.h>
 #endif
 
-#define E_prev(i,j) E_prev[(i)*(n+2)+j]
-#define R(i,j) R[(i)*(n+2)+j]
-#define E(i,j) E[(i)*(n+2)+j]
+#define E_prev(ii,jj) E_prev[(ii)*(n+2)+jj]
+#define R(ii,jj) R[(ii)*(n+2)+jj]
+#define E(ii,jj) E[(ii)*(n+2)+jj]
 
 
 extern control_block cb;
@@ -172,16 +172,19 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 				cols++;
 				//incr_col--;
 			}
-
+			//cout<<"Rank while sending = "<<rank<<endl;
 			for(int ii = 0 ; ii < min(rows,n+2-ii) ; ii+=1) {
 				for(int jj = 0 ; jj < min(cols,n+2-jj) ; jj+=1) {
-					//cout << "ii = " << ii << " " << "jj = " << jj <<endl;
+					cout << "ii = " << ii << " " << "jj = " << jj <<endl;
 					buffer_E_prev[ii*cols+jj] = E_prev(ii,jj);
 					buffer_R[ii*cols+jj] = R(ii,jj);
 					buffer_E[ii*cols+jj] = E(ii,jj);
+					//if(rank == 5)
+					//cout << "buffer_E_prev = "<<buffer_E_prev[ii*cols+jj]<<endl;
 				}
 			}
 			//cout<< "MPI_SEND"<<endl;
+			//cout<< "Rows while sending = "<<rows<<"Cols while sending = "<<cols<<endl;
 			MPI_Send(buffer_E_prev,rows*cols,MPI_DOUBLE,rank,0,MPI_COMM_WORLD);
 			MPI_Send(buffer_R,rows*cols,MPI_DOUBLE,rank,1,MPI_COMM_WORLD);
 			MPI_Send(buffer_E,rows*cols,MPI_DOUBLE,rank,2,MPI_COMM_WORLD);
@@ -193,11 +196,36 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 		}
 	}
 	else {
+		int rows,cols,incr_row,incr_col;
+		rows = (n+2)/cb.py;
+		cols = (n+2)/cb.px;
+		incr_row = (n+2)%(cb.py);
+		incr_col = (n+2)%(cb.px);
+		if(myrank/cb.px < incr_row) {
+			rows++;
+		}
 		//cout<< "MPI_RCV"<<endl;
-		MPI_Recv(buffer_E_prev,rows*cols,MPI_DOUBLE,0,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-		MPI_Recv(buffer_R,rows*cols,MPI_DOUBLE,0,1,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-		MPI_Recv(buffer_E,rows*cols,MPI_DOUBLE,0,2,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-			
+		if(myrank%cb.px < incr_col) {
+			cols++;
+		}
+		//cout<<"Rank = "<<myrank<<endl;
+		//cout<<"Rows = "<<rows<<" "<<"Cols = "<<cols<<endl;
+		double* buffer_E_prev_tmp = (double*)malloc((rows+1)*(cols+1)*sizeof(double));	
+		double* buffer_R_tmp = (double*)malloc((rows+1)*(cols+1)*sizeof(double));	
+		double* buffer_E_tmp = (double*)malloc((rows+1)*(cols+1)*sizeof(double));	
+		MPI_Recv(buffer_E_prev_tmp,(rows+1)*(cols+1),MPI_DOUBLE,0,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+		MPI_Recv(buffer_R_tmp,(rows+1)*(cols+1),MPI_DOUBLE,0,1,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+		MPI_Recv(buffer_E_tmp,(rows+1)*(cols+1),MPI_DOUBLE,0,2,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
+		
+			for(int ii = 0 ; ii < min(rows,n+2-ii) ; ii+=1) {
+				for(int jj = 0 ; jj < min(cols,n+2-jj) ; jj+=1) {
+					E_prev(ii,jj) = buffer_E_prev_tmp[ii*cols+jj];
+					R(ii,jj) = buffer_R_tmp[ii*cols+jj];
+					E(ii,jj) = buffer_E_tmp[ii*cols+jj];
+					//if(myrank == 5)
+					//cout << "buffer_E_prev_tmp = "<<buffer_E_prev_tmp[ii*cols+jj]<<endl;
+			}
+}
 		//MPI_Wait(buffer_E_prev,sizeof(double),MPI_DOUBLE,rank,0,MPI_COMM_WORLD);
 		//MPI_Wait(buffer_R,sizeof(double),MPI_DOUBLE,rank,1,MPI_COMM_WORLD);
 		//MPI_Wait(buffer_E,sizeof(double),MPI_DOUBLE,rank,2,MPI_COMM_WORLD);

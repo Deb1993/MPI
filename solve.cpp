@@ -21,6 +21,10 @@
 #endif
 using namespace std;
 
+#define E_prev(ii,jj) E_prev[(ii)*(n+2)+jj]
+#define R(ii,jj) R[(ii)*(n+2)+jj]
+#define E(ii,jj) E[(ii)*(n+2)+jj]
+
 void repNorms(double l2norm, double mx, double dt, int m,int n, int niter, int stats_freq);
 void stats(double *E, int m, int n, double *_mx, double *sumSq);
 
@@ -110,6 +114,84 @@ void solve(double **_E, double **_E_prev, double *R, double alpha, double dt, Pl
 //////////////////////////////////////////////////////////////////////////////
 
 #define FUSED 1
+
+//#ifdef _MPI_
+//
+//E_tmp = E;
+//E_prev _tmp = E_prev;
+//R_rmp = R;
+//E_copy = E + (n+2) + 1;
+//
+//int rows,cols,incr_row,incr_col;
+//
+//rows = n/cb.py;
+//cols = n/cb.px;
+//
+//incr_row = n%cb.py;
+//incr_col = n%cb.px;
+//
+////rows calculation
+//if(rank%cb.px < incr_row) { 
+//rows++;
+//}
+//
+////rows calculation
+//if(rank%cb.py < incr_col) {
+//cols++;
+//}
+//
+//double* buffer_top = (double*)malloc(cols*sizeof(double));
+//double* buffer_bottom = (double*)malloc(cols*sizeof(double));
+//double* buffer_right = (double*)malloc(rows*sizeof(double));
+//double* buffer_left = (double*)malloc(rows*sizeof(double));
+//
+//E_copy = E_copy + (rank/px) * rows;
+//E_prev_tmp = E_copy + (rank%cb.px) * cols; 
+//
+////Rows Message Passing
+//if(cb.py > 1) {
+//	if(rank/cb.px == 0) {
+//		for(int j = 0; j < cols; i++) {
+//			buffer_top[j] = E_prev_tmp[j];
+//			MPI_Send(E_prev_tmp);
+//			MPI_Recv();	
+//}	
+//}
+//	else if(rank/cb.px == cb.py - 1) {
+//	}
+//	else {
+//	}
+//}
+//else {
+//
+//}
+//
+////Columns Message Passing
+//if(cb.px > 1) {
+//	if(rank%cb.px == 0) {
+//	}
+//	else if (rank%cb.px == cb.px - 1) {
+//	}
+//	else {
+//	}
+//}
+//else {
+//
+//}
+//
+//			for(int ii = 0 ; ii < min(rows,n-ii) ; ii+=1) {
+//				for(int jj = 0 ; jj < min(cols,n-jj) ; jj+=1) {
+//	    
+//	    E_tmp(ii,jj) = E_prev_tmp(ii,jj)+alpha*(buffer(ii,jj+1)+E_prev_tmp(ii,jj-1)-4*E_prev_tmp(ii,jj)+E_prev_tmp(ii+1,jj)+E_prev_tmp(ii-1,jj));
+//            E_tmp(ii,jj) += -dt*(kk*E_prev_tmp(ii,jj)*(E_prev_tmp(ii,jj)-a)*(E_prev_tmp(ii,jj)-1)+E_prev_tmp(ii,jj)*R_tmp(ii,jj));
+//            R_tmp(ii,jj) += dt*(epsilon+M1* R_tmp(ii,jj)/( E_prev_tmp(ii,jj)+M2))*(-R_tmp(ii,jj)-kk*E_prev_tmp(ii,jj)*(E_prev_tmp(ii,jj)-b-1));
+//
+//		}
+//	}
+//
+//#endif
+
+
 
 #ifdef FUSED
     // Solve for the excitation, a PDE
