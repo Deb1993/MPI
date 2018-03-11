@@ -149,8 +149,8 @@ void solve(double **_E, double **_E_prev, double *R, double alpha, double dt, Pl
 
 #ifdef _MPI_
 
- int N=n+2;
- int M=m+2;
+ int N=n;
+ int M=m;
  double* buffer_top_sen = (double*)malloc(N*sizeof(double));
  double* buffer_bottom_sen = (double*)malloc(N*sizeof(double));
  double* buffer_right_sen = (double*)malloc(M*sizeof(double));
@@ -214,8 +214,8 @@ int count=0;
 if(x1!=0)
 {
 //left
-MPI_Isend(buffer_left_sen, M, MPI_DOUBLE, rank - 1, 0,MPI_COMM_WORLD , send + count);
-MPI_Irecv(buffer_left_rec, M, MPI_DOUBLE, rank - 1, 0,MPI_COMM_WORLD , rec+ count);
+MPI_Isend(buffer_left_sen, m, MPI_DOUBLE, rank - 1, 0,MPI_COMM_WORLD , send + count);
+MPI_Irecv(buffer_left_rec, m, MPI_DOUBLE, rank - 1, 0,MPI_COMM_WORLD , rec+ count);
 count++;
 }
 
@@ -223,8 +223,8 @@ count++;
 if(x1!=cb.px-1)
 {
 //right
-MPI_Isend(buffer_right_sen, M, MPI_DOUBLE, rank + 1, 0,MPI_COMM_WORLD , send+count);
-MPI_Irecv(buffer_right_rec, M, MPI_DOUBLE, rank + 1, 0,MPI_COMM_WORLD , rec+count);
+MPI_Isend(buffer_right_sen, m, MPI_DOUBLE, rank + 1, 0,MPI_COMM_WORLD , send+count);
+MPI_Irecv(buffer_right_rec, m, MPI_DOUBLE, rank + 1, 0,MPI_COMM_WORLD , rec+count);
 count++;
 }
 
@@ -234,8 +234,8 @@ count++;
 if(y1!=0)
 {
 //up
-MPI_Isend(buffer_top_sen, N, MPI_DOUBLE, rank - cb.px, 0,MPI_COMM_WORLD , send+count);
-MPI_Irecv(buffer_top_rec, N, MPI_DOUBLE, rank - cb.px, 0,MPI_COMM_WORLD , rec+count);
+MPI_Isend(buffer_top_sen, n, MPI_DOUBLE, rank - cb.px, 0,MPI_COMM_WORLD , send+count);
+MPI_Irecv(buffer_top_rec, n, MPI_DOUBLE, rank - cb.px, 0,MPI_COMM_WORLD , rec+count);
 count++;
 }
 
@@ -243,8 +243,8 @@ count++;
 if(y1!=cb.py-1)
 {
 //down
-MPI_Isend(buffer_bottom_sen, N, MPI_DOUBLE, rank + cb.px, 0,MPI_COMM_WORLD , send+count);
-MPI_Irecv(buffer_bottom_rec, N, MPI_DOUBLE, rank + cb.px, 0,MPI_COMM_WORLD , rec+count);
+MPI_Isend(buffer_bottom_sen, n, MPI_DOUBLE, rank + cb.px, 0,MPI_COMM_WORLD , send+count);
+MPI_Irecv(buffer_bottom_rec, n, MPI_DOUBLE, rank + cb.px, 0,MPI_COMM_WORLD , rec+count);
 count++;
 }
 
@@ -254,8 +254,9 @@ MPI_Waitall(count,rec,stat);
 
  if (x1!=0)
   {
+//left
    int j=0;
-   for(i=n+3; i<(m+1)*(n+2); i+=n+2)
+   for(i=n+2; i<(m+1)*(n+2); i+=n+2)
      	{	E_prev[i]=buffer_left_rec[j];
          j++;
 	}
@@ -263,7 +264,7 @@ MPI_Waitall(count,rec,stat);
 //Put right column of matrix in send right
  if (x1!=cb.px-1)
 { int j=0;
-   for(i=n+2+n; i<(m+1)*(n+2); i+=n+2)
+   for(i=n+3+n; i<(m+1)*(n+2); i+=n+2)
  {    		E_prev[i]=buffer_right_sen[j];
 	j++;
 }
@@ -272,7 +273,7 @@ MPI_Waitall(count,rec,stat);
 //Put top row of matrix in send up
  if (y1!=0)
 { int j=0;
-   for(i=n+3; i<(2*n+3); i++)
+   for(i=1; i<(n+2); i++)
 {     		E_prev[i]= buffer_right_sen[j];
 	j++; 
 }
@@ -281,7 +282,7 @@ MPI_Waitall(count,rec,stat);
 //Put bottom row of matrix in send down
  if (y1!=cb.py-1)
 { int j=0;
-   for(i=(m)*(n+2)+1; i<(m)*(n+2)+n+1; i++)
+   for(i=(m+1)*(n+2)+1; i<(m+1)*(n+2)+n+1; i++)
 {
      		E_prev[i]=buffer_right_sen[j];
 	j++;
