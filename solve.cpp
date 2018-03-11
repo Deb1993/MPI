@@ -77,12 +77,12 @@ void solve(double **_E, double **_E_prev, double *R, double alpha, double dt, Pl
  //m = cb.m / cb.py + (y1 < (cb.m % cb.py));
  //n = cb.n / cb.px + (x1 < (cb.n % cb.px));
 
- cout<<" rank is "<< rank<<endl;
- cout<<" m is "<< m<<endl;
- cout<<" n is "<< n<<endl;
+ //cout<<" rank is "<< rank<<endl;
+ //cout<<" m is "<< m<<endl;
+ //cout<<" n is "<< n<<endl;
  int m1 = ar.m-2, n1=ar.n-2;
- cout<<" m1 is "<< m1<<endl;
- cout<<" n1 is "<< n1<<endl;
+ //cout<<" m1 is "<< m1<<endl;
+ //cout<<" n1 is "<< n1<<endl;
  // We continue to sweep over the mesh until the simulation has reached
  // the desired number of iterations
   for (niter = 0; niter < cb.niters; niter++){
@@ -131,7 +131,9 @@ void solve(double **_E, double **_E_prev, double *R, double alpha, double dt, Pl
     {
     // Fills in the LEFT Ghost Cells
     for (i = 0; i < (m+2)*(n+2); i+=(n+2)) {
-    }	
+    	E_prev[i] = E_prev[i+2];
+    		}
+	}	
     
     if (y1==cb.py-1)
     {
