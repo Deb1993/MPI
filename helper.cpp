@@ -9,6 +9,7 @@
 // Needed for memalign
 #include <malloc.h>
 #include "cblock.h"
+#include "arblock.h"
 
 using namespace std;
 
@@ -20,16 +21,16 @@ using namespace std;
 #define R(ii,jj) R[(ii)*(n+2)+jj]
 #define E(ii,jj) E[(ii)*(n+2)+jj]
 
-#ifdef _MPI_
-typedef struct _array_chunk {
-
-	int m,n;
-	double *E ;
-	double *E_prev;
-	double *R;
-
-} array_chunk; 
-#endif
+//#ifdef _MPI_
+//typedef struct _array_chunk {
+//
+//	int m,n;
+//	double *E ;
+//	double *E_prev;
+//	double *R;
+//
+//} array_chunk; 
+//#endif
 
 
 extern control_block cb;
