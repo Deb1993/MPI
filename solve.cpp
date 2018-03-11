@@ -14,9 +14,14 @@
 #include <math.h>
 #include "time.h"
 #include "apf.h"
-#include "Plotting.h"
 #include "cblock.h"
+#include "arblock.h"
+#include "Plotting.h"
 #include <emmintrin.h>
+#ifdef _MPI_
+#include <mpi.h>
+#endif
+
 using namespace std;
 
 #define E_prev(ii,jj) E_prev[(ii)*(n+2)+jj]
@@ -27,6 +32,7 @@ void repNorms(double l2norm, double mx, double dt, int m,int n, int niter, int s
 void stats(double *E, int m, int n, double *_mx, double *sumSq);
 
 extern control_block cb;
+extern array_chunk ar;
 
 #ifdef SSE_VEC
 // If you intend to vectorize using SSE instructions, you must
@@ -56,8 +62,31 @@ void solve(double **_E, double **_E_prev, double *R, double alpha, double dt, Pl
  double mx, sumSq;
  int niter;
  int m = cb.m, n=cb.n;
+ //int m = ar.m, n=ar.n;
  int innerBlockRowStartIndex = (n+2)+1;
  int innerBlockRowEndIndex = (((m+2)*(n+2) - 1) - (n)) - (n+2);
+ int nprocs,myrank;
+
+	MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
+	MPI_Comm_rank(MPI_COMM_WORLD,&myrank);
+
+int rows,cols,incr_row,incr_col;
+
+rows = (n+2)/cb.py;
+cols = (n+2)/cb.px;
+
+incr_row = (n+2)%cb.py;
+incr_col = (n+2)%cb.px;
+
+//rows calculation
+if(myrank/cb.px < incr_row) { 
+rows++;
+}
+
+//rows calculation
+if(myrank%cb.px < incr_col) {
+cols++;
+}
 
 
  // We continue to sweep over the mesh until the simulation has reached
@@ -68,6 +97,7 @@ void solve(double **_E, double **_E_prev, double *R, double alpha, double dt, Pl
 	  stats(E_prev,m,n,&mx,&sumSq);
           double l2norm = L2Norm(sumSq);
 	  repNorms(l2norm,mx,dt,m,n,-1, cb.stats_freq);
+	  //repNorms(l2norm,mx,dt,rows,cols,-1, cb.stats_freq);
 	  if (cb.plot_freq)
 	      plotter->updatePlot(E,  -1, m+1, n+1);
       }
@@ -88,25 +118,25 @@ void solve(double **_E, double **_E_prev, double *R, double alpha, double dt, Pl
     // 4 FOR LOOPS set up the padding needed for the boundary conditions
     int i,j;
 
-    // Fills in the TOP Ghost Cells
-    for (i = 0; i < (n+2); i++) {
-        E_prev[i] = E_prev[i + (n+2)*2];
-    }
+   // Fills in the TOP Gh st Cells
+	    for (i = 0; i < (n+2); i++) {
+		    E_prev[i] = E_prev[i + (n+2)*2];
+	    }
 
     // Fills in the RIGHT Ghost Cells
     for (i = (n+1); i < (m+2)*(n+2); i+=(n+2)) {
-        E_prev[i] = E_prev[i-2];
+	    E_prev[i] = E_prev[i-2];
     }
 
     // Fills in the LEFT Ghost Cells
     for (i = 0; i < (m+2)*(n+2); i+=(n+2)) {
-        E_prev[i] = E_prev[i+2];
+	    E_prev[i] = E_prev[i+2];
     }	
 
     // Fills in the BOTTOM Ghost Cells
     for (i = ((m+2)*(n+2)-(n+2)); i < (m+2)*(n+2); i++) {
-        E_prev[i] = E_prev[i - (n+2)*2];
-    }
+	    E_prev[i] = E_prev[i - (n+2)*2];
+}
 
 //////////////////////////////////////////////////////////////////////////////
 
@@ -114,80 +144,199 @@ void solve(double **_E, double **_E_prev, double *R, double alpha, double dt, Pl
 
 //#ifdef _MPI_
 //
-//E_tmp = E;
-//E_prev _tmp = E_prev;
-//R_rmp = R;
-//E_copy = E + (n+2) + 1;
+////E_tmp = E;
+////E_prev _tmp = E_prev;
+////R_rmp = R;
+////double* E_copy;
 //
-//int rows,cols,incr_row,incr_col;
+////E_copy = E_prev_tmp + (n+2) + 1;
 //
-//rows = n/cb.py;
-//cols = n/cb.px;
+//double* buffer_top_rcv = (double*)malloc(cols*sizeof(double));
+//double* buffer_bottom_rcv = (double*)malloc(cols*sizeof(double));
+//double* buffer_right_rcv = (double*)malloc(rows*sizeof(double));
+//double* buffer_left_rcv = (double*)malloc(rows*sizeof(double));
+//double* buffer_top_snd = (double*)malloc(cols*sizeof(double));
+//double* buffer_bottom_snd = (double*)malloc(cols*sizeof(double));
+//double* buffer_right_snd = (double*)malloc(rows*sizeof(double));
+//double* buffer_left_snd = (double*)malloc(rows*sizeof(double));
 //
-//incr_row = n%cb.py;
-//incr_col = n%cb.px;
-//
-////rows calculation
-//if(rank%cb.px < incr_row) { 
-//rows++;
-//}
-//
-////rows calculation
-//if(rank%cb.py < incr_col) {
-//cols++;
-//}
-//
-//double* buffer_top = (double*)malloc(cols*sizeof(double));
-//double* buffer_bottom = (double*)malloc(cols*sizeof(double));
-//double* buffer_right = (double*)malloc(rows*sizeof(double));
-//double* buffer_left = (double*)malloc(rows*sizeof(double));
-//
-//E_copy = E_copy + (rank/px) * rows;
-//E_prev_tmp = E_copy + (rank%cb.px) * cols; 
+////E_copy = E_copy + (rank/px) * rows * (n+2);
+////E_prev_tmp = E_copy + (rank%cb.px) * cols; 
+////E_prev_tmp = E_prev_tmp + (n+2) + 1;
 //
 ////Rows Message Passing
 //if(cb.py > 1) {
 //	if(rank/cb.px == 0) {
-//		for(int j = 0; j < cols; i++) {
-//			buffer_top[j] = E_prev_tmp[j];
-//			MPI_Send(E_prev_tmp);
-//			MPI_Recv();	
+//		for(int j = 0; j < cols; j++) {
+//			//E_prev_tmp = E_prev_tmp - (n+2);
+//			//buffer_top_rcv[j] = E_prev_tmp[j];
+//			E_prev_tmp = E_prev_tmp + (n+2)*(rows-1);
+//			buffer_bottom_snd[j] = E_prev_tmp[j];
+//			E_prev_tmp = E_prev_tmp - ((rows - 1) * (n+2));
+//			}
+//
+//			MPI_Send(buffer_top_snd,rows*cols,MPI_DOUBLE,rank+cb.px,0,MPI_COMM_WORLD);
+//			MPI_Recv(buffer_bottom_rcv,rows*cols,MPI_DOUBLE,rank+cb.px,0,MPI_COMM_WORLD);	
+//		for(int j = 0 ; j < cols; j++) {
+//			E_prev_tmp = E_prev_tmp + ((n+2)*rows);
+//			E_prev_tmp[j] = buffer_top_rcv[j];
+//			E_prev_tmp = E_prev_tmp - (rows * (n+2));
+//		}		
 //}	
-//}
 //	else if(rank/cb.px == cb.py - 1) {
+//		for(int j = 0; j < cols; j++) {
+//			//E_prev_tmp = E_prev_tmp + (rows * (n+2));
+//			//buffer_bottom_rcv[j] = E_prev_tmp[j];
+//			//E_prev_tmp = E_prev_tmp - (rows * (n+2));
+//			buffer_top_snd[j] = E_prev_tmp[j]; 
+//		}
+//			
+//			MPI_Send(buffer_top_snd,rows*cols,MPI_DOUBLE,rank-cb.px,0,MPI_COMM_WORLD);
+//			MPI_Rcv(buffer_top_rcv,rows*cols,MPI_DOUBLE,rank-cb.px,0,MPI_COMM_WORLD);
+//			
+//		for(int j = 0 ; j < cols ; j++) {
+//			//E_prev_tmp = E_prev_tmp + (rows * (n+2));
+//			//E_prev_tmp[j] = buffer_bottom_rcv[j];
+//			E_prev_tmp = E_prev_tmp - (rows * (n+2));
+//			E_prev_tmp = E_prev_tmp - (n+2);
+//			E_prev_tmp[j] = buffer_top_rcv[j];
+//			E_prev_tmp = E_prev_tmp + (n+2);
+//		}
 //	}
 //	else {
-//	}
+//		for(int j = 0 ; j < cols ; j++) {
+//			buffer_top_snd[j] = E_prev_tmp[j];
+//			E_prev_tmp = E_prev_tmp + (rows-1)*(n+2);
+//			buffer_bottom_snd[j] = E_prev_tmp[j];
+//			E_prev_tmp = E_prev_tmp - (rows-1)*(n+2);
+//		}
+//			
+//			MPI_Send(buffer_top_snd,rows*cols,MPI_DOUBLE,rank-cb.px,0,MPI_COMM_WORLD);
+//			MPI_Send(buffer_bottom_snd,rows*cols,MPI_DOUBLE,rank+cb.px,0,MPI_COMM_WORLD);
+//			MPI_Rcv(buffer_top_rcv,rows*cols,MPI_DOUBLE,rank-cb.px,0,MPI_COMM_WORLD);
+//			MPI_Rcv(buffer_bottom_rcv,rows*cols,MPI_DOUBLE,rank+cb.px,0,MPI_COMM_WORLD);
+//		
+//		for(int j = 0 ; j < cols ; j++) {
+//			E_prev_tmp = E_prev_tmp - (n+2);
+//			E_prev_tmp[j] = buffer_top_rcv[j];
+//			E_prev_tmp = E_prev_tmp + (n+2);
+//			E_prev_tmp = E_prev_tmp + (rows*(n+2));
+//			E_prev_tmp[j] = buffer_bottom_rcv[j];
+//			E_prev_tmp = E_prev_tmp - (rows*(n+2));
+//		}        	
+//	}	
 //}
-//else {
-//
+////else {
+////		for(int j = 0 ; j < cols ; j++) {
+////			E_prev_tmp = E_prev_tmp - (n+2);
+////			buffer_top_rcv[j] = E_prev_tmp[j];
+////			E_prev_tmp = E_prev_tmp + (n+2);
+////			E_prev_tmp = E_prev_tmp + (rows*(n+2));
+////			buffer_bottom_rcv[j] = E_prev_tmp[j];
+////			E_prev_tmp = E_prev_tmp - (rows*(n+2));
+////		}
 //}
 //
 ////Columns Message Passing
 //if(cb.px > 1) {
 //	if(rank%cb.px == 0) {
+//		for(int i = 0 ; i < rows ; i++) {
+//			E_prev_tmp = E_prev_tmp - 1;
+//			E_prev_tmp = E_prev_tmp + (n+2)*i;
+//			buffer_left_rcv[i] = E_prev_tmp[0];
+//			E_prev_tmp = E_prev_tmp + cols + 1;
+//			buffer_right_snd[i] = E_prev_tmp[0];
+//			E_prev_tmp = E_prev_tmp - (n+2)*i - cols;
+//		}
+//
+//			MPI_Send(buffer_right_snd,rows*cols,MPI_DOUBLE,rank+1,0,MPI_COMM_WORLD);
+//			MPI_Rcv(buffer_right_rcv,rows*cols,MPI_DOUBLE,rank+1,0,MPI_COMM_WORLD);
+//
+//		for(int i = 0 ; i < rows ; i++) {
+//			E_prev_tmp = E_prev_tmp - 1;
+//			E_prev_tmp = E_prev_tmp + (n+2)*i;
+//			E_prev_tmp[0] = buffer_left_rcv[i];
+//			E_prev_tmp = E_prev_tmp + cols + 1;
+//			E_prev_tmp[0] = buffer_right_rcv[i];
+//			E_prev_tmp = E_prev_tmp - (n+2)*i - cols; 	
+//		}
+//				
 //	}
 //	else if (rank%cb.px == cb.px - 1) {
+//		for(int i = 0 ; i < rows ; i++) {
+//			E_prev_tmp = E_prev_tmp + (n+2)*i;
+//			E_prev_tmp = E_prev_tmp + cols;
+//			buffer_right_rcv[i] = E_prev_tmp[0];
+//			E_prev_tmp = E_prev_tmp - (n+2)*i - cols;
+//			E_prev_tmp = E_prev_tmp - 1;
+//			E_prev_tmp = E_prev_tmp + (n+2)*i;
+//			buffer_left_snd[i] = E_prev[0];	
+//			E_prev_tmp = E_prev_tmp - (n+2)*i + 1; 
+//		}
+//				
+//			MPI_Send(buffer_left_snd,rows*cols,MPI_DOUBLE,rank-1,0,MPI_COMM_WORLD);
+//			MPI_Rcv(buffer_left_rcv,rows*cols,MPI_DOUBLE,rank-1,0,MPI_COMM_WORLD);
+//		
+//		for(int i = 0 ; i < rows ; i++) {
+//			E_prev_tmp = E_prev_tmp + (n+2)*i;
+//			E_prev_tmp = E_prev_tmp + cols;
+//			E_prev_tmp[0] = buffer_right_rcv[i];
+//			E_prev_tmp = E_prev_tmp - (n+2)*i - cols;
+//			E_prev_tmp = E_prev_tmp - 1;
+//			E_prev_tmp = E_prev_tmp + (n+2)*i;
+//			E_prev_tmp[0] = buffer_left_rcv[i];
+//			E_prev_tmp = E_prev_tmp - (n+2)*i + 1;
+//		}	
 //	}
 //	else {
-//	}
-//}
-//else {
+//		for(int i = 0 ; i < rows ; i++) {
+//		E_prev_tmp = E_prev_tmp - 1;
+//		E_prev_tmp = E_prev_tmp + (n+2)*i;
+//		buffer_left_snd[i] = E_prev_tmp[0];
+//		E_prev_tmp = E_prev_tmp + cols + 1;
+//		buffer_right_snd[i] = E_prev_mp[0];
+//		E_prev_tmp = E_prev_tmp - (n+2)*i - cols;
+//		}
 //
-//}
-//
-//			for(int ii = 0 ; ii < min(rows,n-ii) ; ii+=1) {
-//				for(int jj = 0 ; jj < min(cols,n-jj) ; jj+=1) {
-//	    
-//	    E_tmp(ii,jj) = E_prev_tmp(ii,jj)+alpha*(buffer(ii,jj+1)+E_prev_tmp(ii,jj-1)-4*E_prev_tmp(ii,jj)+E_prev_tmp(ii+1,jj)+E_prev_tmp(ii-1,jj));
-//            E_tmp(ii,jj) += -dt*(kk*E_prev_tmp(ii,jj)*(E_prev_tmp(ii,jj)-a)*(E_prev_tmp(ii,jj)-1)+E_prev_tmp(ii,jj)*R_tmp(ii,jj));
-//            R_tmp(ii,jj) += dt*(epsilon+M1* R_tmp(ii,jj)/( E_prev_tmp(ii,jj)+M2))*(-R_tmp(ii,jj)-kk*E_prev_tmp(ii,jj)*(E_prev_tmp(ii,jj)-b-1));
-//
+//			MPI_Send(buffer_left_snd,rows*cols,MPI_DOUBLE,rank-1,0,MPI_COMM_WORLD);
+//			MPI_Send(buffer_right_snd,rows*cols,MPI_DOUBLE,rank+1,0,MPI_COMM_WORLD);
+//			MPI_Rcv(buffer_left_rcv,rows*cols,MPI_DOUBLE,rank-1,0,MPI_COMM_WORLD);
+//			MPI_Rcv(buffer_right_rcv,rows*cols,MPI_DOUBLE,rank+1,0,MPI_COMM_WORLD);
+//		
+//		for(int i = 0 ; i < rows ; i++) {
+//			E_prev_tmp = E_prev_tmp - 1;
+//			E_prev_tmp = E_prev_tmp + (n+2)*i;
+//			E_prev_tmp[0] = buffer_left_rcv[i];
+//			E_prev_tmp = E_prev_tmp + cols + 1;
+//			E_prev_tmp[0] = buffer_right_rcv[i];
+//			E_prev_tmp = E_prev_tmp - (n+2)*i - cols;
 //		}
 //	}
+//}
+////else {
+////		for(int i = 0 ; i < rows ; i++) {
+////			E_prev_tmp = E_prev_tmp - 1;
+////			E_prev_tmp = E_prev_tmp + (n+2)*i;
+////			buffer_left_rcv[i] = E_prev_tmp[0];
+////			E_prev_tmp = E_prev_tmp + cols + 1;
+////			buffer_right_rcv[i] = E_prev_tmp[0];
+////			E_prev_tmp = E_prev_tmp - (n+2)*i - cols;
+////		}
+////
 //
-//#endif
-
+//    for(j = (n+2) + 1; j <= rows - 1; j+=(n+2)) {
+//        E_tmp = E + j;
+//	E_prev_tmp = E_prev + j;
+//        R_tmp = R + j;
+//	for(i = 0; i < cols; i++) {
+//	    E_tmp[i] = E_prev_tmp[i]+alpha*(E_prev_tmp[i+1]+E_prev_tmp[i-1]-4*E_prev_tmp[i]+E_prev_tmp[i+(n+2)]+E_prev_tmp[i-(n+2)]);
+//            E_tmp[i] += -dt*(kk*E_prev_tmp[i]*(E_prev_tmp[i]-a)*(E_prev_tmp[i]-1)+E_prev_tmp[i]*R_tmp[i]);
+//            R_tmp[i] += dt*(epsilon+M1* R_tmp[i]/( E_prev_tmp[i]+M2))*(-R_tmp[i]-kk*E_prev_tmp[i]*(E_prev_tmp[i]-b-1));
+//        }
+//    }
+//
+////#endif
+//#else
 
 
 #ifdef FUSED
@@ -227,6 +376,8 @@ void solve(double **_E, double **_E_prev, double *R, double alpha, double dt, Pl
         }
     }
 #endif
+
+//#endif
      /////////////////////////////////////////////////////////////////////////////////
 
    if (cb.stats_freq){
