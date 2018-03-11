@@ -134,6 +134,25 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 	double* buffer_E = (double*)malloc(rows*cols*sizeof(double));	
 	
       if(myrank == 0) {
+		int rows,cols,incr_row,incr_col;
+		rows = n/cb.py;
+		cols = n/cb.px;
+		int incr_row1 = n%(cb.py);
+		int incr_col1 = n%(cb.px);
+		if(myrank/cb.px < incr_row1) {
+			rows++;
+		}
+		//cout<< "MPI_RCV"<<endl;
+		if(myrank%cb.px < incr_col1) {
+			cols++;
+		}
+		ar.m = rows + 2;
+		ar.n = cols + 2;
+		cout<<"m = "<<ar.m-2<<" "<<"n = "<<ar.n-2<<endl;
+		ar.E_prev = (double*)malloc(ar.m*ar.n*sizeof(double)); 
+		ar.R = (double*)malloc(ar.m*ar.n*sizeof(double)); 
+		ar.E = (double*)malloc(ar.m*ar.n*sizeof(double)); 
+		
 		for( int rank = 1 ; rank < nprocs ; rank++) {
 		//	int rows,cols;
 		//	rows = (n+2)/cb.py;
@@ -230,6 +249,7 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 		MPI_Recv(buffer_E_tmp,rows*cols,MPI_DOUBLE,0,2,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 		ar.m = rows + 2;
 		ar.n = cols + 2;
+		cout<<"m = "<<ar.m-2<<" "<<"n = "<<ar.n-2<<endl;
 		ar.E_prev = (double*)malloc(ar.m*ar.n*sizeof(double)); 
 		ar.R = (double*)malloc(ar.m*ar.n*sizeof(double)); 
 		ar.E = (double*)malloc(ar.m*ar.n*sizeof(double)); 
