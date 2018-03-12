@@ -173,6 +173,7 @@ void solve(double **_E, double **_E_prev, double *R, double alpha, double dt, Pl
 
 #define FUSED 1
 
+if(!cb.noComm) {
 #ifdef _MPI_
 
  int N=n;
@@ -332,7 +333,7 @@ MPI_Waitall(count,rec,stat);
 
 }
 #endif
-
+}
 //if (rank==1)
 //{
 //cout<<"rank final is"<<rank<<endl;
@@ -344,8 +345,8 @@ MPI_Waitall(count,rec,stat);
 
 if (rank==0)
 {
-cout<<"rank final is"<<rank<<endl;
-printMat1("printing eprev before op",E_prev,m,n);
+//cout<<"rank final is"<<rank<<endl;
+//printMat1("printing eprev before op",E_prev,m,n);
 }
     for(j = innerBlockRowStartIndex; j <= innerBlockRowEndIndex; j+=(n+2)) {
         E_tmp = E + j;
@@ -426,8 +427,8 @@ else
 
 if (rank==0)
 {
-cout<<"rank final is"<<rank<<endl;
-printMat1("printing final eprev",E_prev,m,n);
+//cout<<"rank final is"<<rank<<endl;
+//printMat1("printing final eprev",E_prev,m,n);
 }
 
 #ifdef _MPI_

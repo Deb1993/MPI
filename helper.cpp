@@ -24,18 +24,6 @@ using namespace std;
 #define R_copy(ii,jj) R_copy[(ii)*(n+2)+jj]
 #define E_copy(ii,jj) E_copy[(ii)*(n+2)+jj]
 
-//#ifdef _MPI_
-//typedef struct _array_chunk {
-//
-//	int m,n;
-//	double *E ;
-//	double *E_prev;
-//	double *R;
-//
-//} array_chunk; 
-//#endif
-
-
 extern control_block cb;
 
 void printMat(const char mesg[], double *E, int m, int n);
@@ -51,9 +39,6 @@ array_chunk ar;
 // be mapped to appropriate local indices when parallelizing the code
 //
 void init (double *E,double *E_prev,double *R,int m,int n){
-	//#ifdef _MPI_
-	//MPI_Init(&argc,&argv);
-	//#endif
 	int i;
 	int nprocs,myrank;
 
@@ -78,7 +63,6 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 		if(colIndex == 0 || colIndex == (n+1) || rowIndex < ((m+1)/2+1))
 			continue;
 
-		//cout << "E_prev matrix all = " << E_prev[i] <<endl;
 		R[i] = 1.0;
 	}
 	// We only print the meshes if they are small enough
@@ -113,8 +97,8 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 
 	//cout<<"my rank = "<<myrank<<endl;
 	//cout<<"m = "<<ar.m-2<<" "<<"n = "<<ar.n-2<<endl;
-	if(myrank == 0)
-	printMat("E_prev",E_prev,n,n);
+	//if(myrank == 0)
+	//printMat("E_prev",E_prev,n,n);
 
 
 	int rows,cols,incr_row,incr_col,incr_px,incr_py;
@@ -146,10 +130,10 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 					ar.R[(ii+1)*ar.n+jj+1] = R_copy(ii,jj);
 				}
 			}
-	cout<<"Rank 0 = "<<myrank<<endl;
-	printMat("ar.E_prev",ar.E_prev,rows,cols);			
-	printMat("ar.E",ar.E,rows,cols);			
-	printMat("ar.R",ar.R,rows,cols);			
+	//cout<<"Rank 0 = "<<myrank<<endl;
+	//printMat("ar.E_prev",ar.E_prev,rows,cols);			
+	//printMat("ar.E",ar.E,rows,cols);			
+	//printMat("ar.R",ar.R,rows,cols);			
 	}
 
 	if(incr_px != 0) {
@@ -177,8 +161,8 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 		
 		for( int rank = 1 ; rank < nprocs ; rank++) {
 			if(rank != 1) {
-				cout<<"Rank Now = "<<rank<<endl;
-				cout<<"Rows Now = "<<rows<<"Cols now = "<<cols<<endl; 
+				//cout<<"Rank Now = "<<rank<<endl;
+				//cout<<"Rows Now = "<<rows<<"Cols now = "<<cols<<endl; 
 				incr_px--;
 				//cout << "incr_px = "<<incr_px<<endl;
 				if(incr_px != 0) {
@@ -258,14 +242,14 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 }
 	}	
 
-					if(myrank == 1) {
+					//if(myrank == 1) {
 					//cout << "buffer_E_prev_tmp = "<<buffer_E_prev_tmp[ii*cols+jj]<<endl;
-					cout<<"rows = "<<rows1<<"cols = "<<cols1<<endl;
+					//cout<<"rows = "<<rows1<<"cols = "<<cols1<<endl;
 					//printMat("ar.E_prev",ar.E_prev,rows1,cols1);			
-					printMat("ar.E",ar.E,rows1,cols1);			
-					printMat("ar.R",ar.R,rows1,cols1);			
+					//printMat("ar.E",ar.E,rows1,cols1);			
+					//printMat("ar.R",ar.R,rows1,cols1);			
 					//cout << "E_prev = "<<ar.E_prev[(ii+1)*ar.n+jj+1]<<endl;
-				}
+				//}
 			}
 #else
 	ar.m = m + 2;

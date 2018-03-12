@@ -65,7 +65,7 @@ echo
 
 echo ">>> Job Starts"
 date
-./apf -n 150 -i 400
+./apf -n 400 -i 500
 
 date
 echo ">>> Job Ends"
