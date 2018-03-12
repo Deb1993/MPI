@@ -56,6 +56,7 @@ void solve(double **_E, double **_E_prev, double *R, double alpha, double dt, Pl
  double *E = ar.E, *E_prev = ar.E_prev;
  //double *R_tmp = R;
  double *R_tmp = ar.R;
+ R = ar.R;
  //double *E_tmp = *_E;
  double *E_tmp = ar.E;
  //double *E_prev_tmp = *_E_prev;
