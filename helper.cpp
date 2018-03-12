@@ -267,6 +267,17 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 					//cout << "E_prev = "<<ar.E_prev[(ii+1)*ar.n+jj+1]<<endl;
 				}
 			}
+#else
+	ar.m = m + 2;
+	ar.n = n + 2;
+
+	ar.E_prev = (double*)malloc(ar.m*ar.n*sizeof(double)); 
+	ar.R = (double*)malloc(ar.m*ar.n*sizeof(double)); 
+	ar.E = (double*)malloc(ar.m*ar.n*sizeof(double)); 
+
+	ar.E_prev = E_prev;
+	ar.E = E;
+	ar.R = R;
 #endif
 
 //#ifdef _MPI_
