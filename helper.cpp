@@ -143,6 +143,7 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 					ar.R[(ii+1)*ar.n+jj+1] = R(ii,jj);
 				}
 			}
+	//cout<<"Rank 0 = "<<myrank<<endl;
 	//printMat("ar.E_prev",ar.E_prev,rows,cols);			
 	}
 
@@ -171,6 +172,8 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 		
 		for( int rank = 1 ; rank < nprocs ; rank++) {
 			if(rank != 1) {
+				cout<<"Rank Now = "<<rank<<endl;
+				cout<<"Rows Now = "<<rows<<"Cols now = "<<cols<<endl; 
 				incr_px--;
 				//cout << "incr_px = "<<incr_px<<endl;
 				if(incr_px != 0) {
@@ -196,8 +199,6 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 					}	
 				}
 			}
-			
-			int rows,cols;
 			rows = n/cb.py;
 			cols = n/cb.px;
 			if(incr_row > cb.py - incr_py) {
@@ -210,8 +211,8 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 			}
 			//cout<<"Rank while sending = "<<rank<<endl;
 			//cout<<"my rank = "<<rank<<endl;
-			if(rank == 3)
-			cout<<"m = "<<rows<<" "<<"n = "<<cols<<endl;
+			//if(rank == 3)
+			//cout<<"m = "<<rows<<" "<<"n = "<<cols<<endl;
 			double* buffer_E_prev = (double*)malloc(rows*cols*sizeof(double));	
 			double* buffer_R = (double*)malloc(rows*cols*sizeof(double));	
 			double* buffer_E = (double*)malloc(rows*cols*sizeof(double));	
@@ -221,10 +222,10 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 					buffer_E_prev[ii*cols+jj] = E_prev(ii,jj);
 					buffer_R[ii*cols+jj] = R(ii,jj);
 					buffer_E[ii*cols+jj] = E(ii,jj);
-					if(rank == 3 ) {
-					cout << "buffer_E_prev = "<<buffer_E_prev[ii*cols+jj]<<endl;
-					cout << "E_prev small = "<<E_prev(ii,jj)<<endl;
-					}
+					//if(rank == 3 ) {
+					//cout << "buffer_E_prev = "<<buffer_E_prev[ii*cols+jj]<<endl;
+					//cout << "E_prev small = "<<E_prev(ii,jj)<<endl;
+					//}
 				}
 			}
 			//cout<< "MPI_SEND"<<endl;
@@ -252,7 +253,7 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 }
 	}	
 
-					if(myrank == 3) {
+					if(myrank == 1) {
 					//cout << "buffer_E_prev_tmp = "<<buffer_E_prev_tmp[ii*cols+jj]<<endl;
 					cout<<"rows = "<<rows1<<"cols = "<<cols1<<endl;
 					printMat("ar.E_prev",ar.E_prev,rows1,cols1);			
