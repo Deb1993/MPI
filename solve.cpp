@@ -56,11 +56,12 @@ void solve(double **_E, double **_E_prev, double *R, double alpha, double dt, Pl
  double *E = ar.E, *E_prev = ar.E_prev;
  //double *R_tmp = R;
  double *R_tmp = ar.R;
+ R = ar.R;
  //double *E_tmp = *_E;
  double *E_tmp = ar.E;
  //double *E_prev_tmp = *_E_prev;
  double *E_prev_tmp = ar.E_prev;
- double mx, sumSq;
+ double mx, sumSq,fsumSq,fLinf;
  int niter;
  //int m = cb.m, n=cb.n;
  int m = ar.m-2, n=ar.n-2;
@@ -215,6 +216,11 @@ if(x1!=0)
 {
 //left
 MPI_Isend(buffer_left_sen, m, MPI_DOUBLE, rank - 1, 0,MPI_COMM_WORLD , send + count);
+//printmat("leftbuffer", buffer_left_sen,1,m);
+/*cout<<"buferleftsen";
+for (i=0;i<m;i++)
+	cout<<buffer_left_sen[i]<<" ";
+cout<<endl;*/
 MPI_Irecv(buffer_left_rec, m, MPI_DOUBLE, rank - 1, 0,MPI_COMM_WORLD , rec+ count);
 count++;
 }
@@ -356,7 +362,22 @@ MPI_Waitall(count,rec,stat);
 
   // return the L2 and infinity norms via in-out parameters
   stats(E_prev,m,n,&Linf,&sumSq);
-  L2 = L2Norm(sumSq);
+//MPI_Reduce(void* send_data, void* recv_data,int count,MPI_Datatype datatype,MPI_Op op,int root,MPI_Comm communicator)
+#ifdef _MPI_
+if (!cb.noComm)
+{	MPI_Reduce(&sumSq,&fsumSq ,1,MPI_DOUBLE,MPI_SUM,0 ,MPI_COMM_WORLD);
+	MPI_Reduce(&Linf,&fLinf ,1,MPI_DOUBLE,MPI_MAX,0 ,MPI_COMM_WORLD);
+
+  Linf = fLinf;
+}
+else
+{	fsumSq =sumSq;
+
+}
+#else
+	fsumSq =sumSq;
+#endif
+  L2 = L2Norm(fsumSq);
 
   // Swap pointers so we can re-use the arrays
   *_E = E;
