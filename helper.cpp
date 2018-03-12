@@ -20,6 +20,9 @@ using namespace std;
 #define E_prev(ii,jj) E_prev[(ii)*(n+2)+jj]
 #define R(ii,jj) R[(ii)*(n+2)+jj]
 #define E(ii,jj) E[(ii)*(n+2)+jj]
+#define E_prev_copy(ii,jj) E_prev_copy[(ii)*(n+2)+jj]
+#define R_copy(ii,jj) R_copy[(ii)*(n+2)+jj]
+#define E_copy(ii,jj) E_copy[(ii)*(n+2)+jj]
 
 //#ifdef _MPI_
 //typedef struct _array_chunk {
@@ -138,13 +141,15 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 			for(int ii = 0 ; ii < rows1 ; ii+=1) {
 				for(int jj = 0 ; jj < cols1 ; jj+=1) {
 					//cout << "ii = " << ii << " " << "jj = " << jj <<endl;
-					ar.E_prev[(ii+1)*ar.n+jj+1] = E_prev(ii,jj);
-					ar.E[(ii+1)*ar.n+jj+1] = E(ii,jj);
-					ar.R[(ii+1)*ar.n+jj+1] = R(ii,jj);
+					ar.E_prev[(ii+1)*ar.n+jj+1] = E_prev_copy(ii,jj);
+					ar.E[(ii+1)*ar.n+jj+1] = E_copy(ii,jj);
+					ar.R[(ii+1)*ar.n+jj+1] = R_copy(ii,jj);
 				}
 			}
-	//cout<<"Rank 0 = "<<myrank<<endl;
-	//printMat("ar.E_prev",ar.E_prev,rows,cols);			
+	cout<<"Rank 0 = "<<myrank<<endl;
+	printMat("ar.E_prev",ar.E_prev,rows,cols);			
+	printMat("ar.E",ar.E,rows,cols);			
+	printMat("ar.R",ar.R,rows,cols);			
 	}
 
 	if(incr_px != 0) {
@@ -256,7 +261,9 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 					if(myrank == 1) {
 					//cout << "buffer_E_prev_tmp = "<<buffer_E_prev_tmp[ii*cols+jj]<<endl;
 					cout<<"rows = "<<rows1<<"cols = "<<cols1<<endl;
-					printMat("ar.E_prev",ar.E_prev,rows1,cols1);			
+					//printMat("ar.E_prev",ar.E_prev,rows1,cols1);			
+					printMat("ar.E",ar.E,rows1,cols1);			
+					printMat("ar.R",ar.R,rows1,cols1);			
 					//cout << "E_prev = "<<ar.E_prev[(ii+1)*ar.n+jj+1]<<endl;
 				}
 			}
