@@ -260,9 +260,6 @@ MPI_Irecv(buffer_right_rec, m, MPI_DOUBLE, rank + 1, 0,MPI_COMM_WORLD , rec+coun
 count++;
 }
 
-
-
-
 if(y1!=0)
 {
 //up

@@ -279,10 +279,6 @@ double *alloc1D(int m,int n){
 }
 
 
-
-
-
-
 void printMat(const char mesg[], double *E, int m, int n){
 	int i;
 #if 0
