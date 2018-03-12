@@ -98,18 +98,26 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 	if(myrank/cb.px < incr_row1) {
 		rows1++;
 	}
-	//cout<< "MPI_RCV"<<endl;
 	if(myrank%cb.px < incr_col1) {
 		cols1++;
 	}
 	ar.m = rows1 + 2;
 	ar.n = cols1 + 2;
-	cout<<"m = "<<ar.m-2<<" "<<"n = "<<ar.n-2<<endl;
+
+	ar.E_prev = (double*)malloc(ar.m*ar.n*sizeof(double)); 
+	ar.R = (double*)malloc(ar.m*ar.n*sizeof(double)); 
+	ar.E = (double*)malloc(ar.m*ar.n*sizeof(double)); 
+
+	//cout<<"my rank = "<<myrank<<endl;
+	//cout<<"m = "<<ar.m-2<<" "<<"n = "<<ar.n-2<<endl;
+	if(myrank == 0)
+	printMat("E_prev",E_prev,n,n);
+
 
 	int rows,cols,incr_row,incr_col,incr_px,incr_py;
-	E_copy = E;
-	E_prev_copy = E_prev;
-	R_copy = R;
+	E_copy = E + (n+2) + 1;
+	E_prev_copy = E_prev + (n+2) + 1;
+	R_copy = R + (n+2) + 1;
 	incr_px = cb.px;
 	incr_py = cb.py;
 	rows = n/cb.py;
@@ -119,24 +127,37 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 	incr_px--;
 	if(incr_row > cb.py - incr_py) {
 		rows++;
-		//incr_row--;
 	}
 	if(incr_col > cb.px - incr_px) {
 		cols++;
-		//incr_col--;
+	}
+	
+	if(myrank == 0) {
+	//cout<<"my rank = "<<myrank<<endl;
+	//cout<<"m = "<<rows1<<" "<<"n = "<<cols1<<endl;
+			for(int ii = 0 ; ii < rows1 ; ii+=1) {
+				for(int jj = 0 ; jj < cols1 ; jj+=1) {
+					//cout << "ii = " << ii << " " << "jj = " << jj <<endl;
+					ar.E_prev[(ii+1)*ar.n+jj+1] = E_prev(ii,jj);
+					ar.E[(ii+1)*ar.n+jj+1] = E(ii,jj);
+					ar.R[(ii+1)*ar.n+jj+1] = R(ii,jj);
+				}
+			}
+	//cout<<"Rank 0 = "<<myrank<<endl;
+	//printMat("ar.E_prev",ar.E_prev,rows,cols);			
 	}
 
 	if(incr_px != 0) {
-	E_prev = E_prev + cols;
-	R = R + cols;
-	E = E + cols;
+	E_prev = E_prev_copy + cols;
+	R = R_copy + cols;
+	E = E_copy + cols;
 	}
 	else { 
 	incr_py--;
 	if(incr_py != 0) {
-		E_copy = E_copy + rows;
-		E_prev_copy = E_prev_copy + rows;
-		R_copy = R_copy + rows;
+		E_copy = E_copy + rows*(n+2);
+		E_prev_copy = E_prev_copy + rows*(n+2);
+		R_copy = R_copy + rows*(n+2);
 		E_prev = E_prev_copy;
 		R = R_copy;
 		E = E_copy;
@@ -146,28 +167,13 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 		}	
 	}
 
-	double* buffer_E_prev = (double*)malloc(rows*cols*sizeof(double));	
-	double* buffer_R = (double*)malloc(rows*cols*sizeof(double));	
-	double* buffer_E = (double*)malloc(rows*cols*sizeof(double));	
-	ar.E_prev = (double*)malloc(ar.m*ar.n*sizeof(double)); 
-	ar.R = (double*)malloc(ar.m*ar.n*sizeof(double)); 
-	ar.E = (double*)malloc(ar.m*ar.n*sizeof(double)); 
 	
       if(myrank == 0) {
 		
 		for( int rank = 1 ; rank < nprocs ; rank++) {
-		//	int rows,cols;
-		//	rows = (n+2)/cb.py;
-		//	cols = (n+2)/cb.px;
-		//	if(incr_row) {
-		//		rows++;
-		//		incr_row--;
-		//	}
-		//	if(incr_col) {
-		//		cols++;
-		//		incr_col--;
-		//	}
 			if(rank != 1) {
+				cout<<"Rank Now = "<<rank<<endl;
+				cout<<"Rows Now = "<<rows<<"Cols now = "<<cols<<endl; 
 				incr_px--;
 				//cout << "incr_px = "<<incr_px<<endl;
 				if(incr_px != 0) {
@@ -180,9 +186,9 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 				incr_py--;
 				//cout << "incr_py = "<<incr_py<<endl;
 				if(incr_py != 0) {
-					E_copy = E_copy + rows;
-					E_prev_copy = E_prev_copy + rows;
-					R_copy = R_copy + rows;
+					E_copy = E_copy + rows*(n+2);
+					E_prev_copy = E_prev_copy + rows*(n+2);
+					R_copy = R_copy + rows*(n+2);
 					E_prev = E_prev_copy;
 					R = R_copy;
 					E = E_copy;
@@ -193,8 +199,6 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 					}	
 				}
 			}
-			
-			int rows,cols;
 			rows = n/cb.py;
 			cols = n/cb.px;
 			if(incr_row > cb.py - incr_py) {
@@ -206,14 +210,22 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 				//incr_col--;
 			}
 			//cout<<"Rank while sending = "<<rank<<endl;
+			//cout<<"my rank = "<<rank<<endl;
+			//if(rank == 3)
+			//cout<<"m = "<<rows<<" "<<"n = "<<cols<<endl;
+			double* buffer_E_prev = (double*)malloc(rows*cols*sizeof(double));	
+			double* buffer_R = (double*)malloc(rows*cols*sizeof(double));	
+			double* buffer_E = (double*)malloc(rows*cols*sizeof(double));	
 			for(int ii = 0 ; ii < rows ; ii+=1) {
 				for(int jj = 0 ; jj < cols ; jj+=1) {
 					//cout << "ii = " << ii << " " << "jj = " << jj <<endl;
 					buffer_E_prev[ii*cols+jj] = E_prev(ii,jj);
 					buffer_R[ii*cols+jj] = R(ii,jj);
 					buffer_E[ii*cols+jj] = E(ii,jj);
-					//if(rank == 5)
+					//if(rank == 3 ) {
 					//cout << "buffer_E_prev = "<<buffer_E_prev[ii*cols+jj]<<endl;
+					//cout << "E_prev small = "<<E_prev(ii,jj)<<endl;
+					//}
 				}
 			}
 			//cout<< "MPI_SEND"<<endl;
@@ -221,37 +233,16 @@ void init (double *E,double *E_prev,double *R,int m,int n){
       		MPI_Send(buffer_E_prev,rows*cols,MPI_DOUBLE,rank,0,MPI_COMM_WORLD);
       		MPI_Send(buffer_R,rows*cols,MPI_DOUBLE,rank,1,MPI_COMM_WORLD);
       		MPI_Send(buffer_E,rows*cols,MPI_DOUBLE,rank,2,MPI_COMM_WORLD);
-      
-      		//MPI_Wait(buffer_E_prev,sizeof(double),MPI_DOUBLE,rank,0,MPI_COMM_WORLD);
-      		//MPI_Wait(buffer_R,sizeof(double),MPI_DOUBLE,rank,1,MPI_COMM_WORLD);
-      		//MPI_Wait(buffer_E,sizeof(double),MPI_DOUBLE,rank,2,MPI_COMM_WORLD);
       	//cout<< "rank = "<<rank<<endl;
 		}
       }
       else {
-		//int rows,cols,incr_row,incr_col;
-		//rows = n/cb.py;
-		//cols = n/cb.px;
-		//incr_row = n%(cb.py);
-		//incr_col = n%(cb.px);
-		//if(myrank/cb.px < incr_row) {
-		//	rows++;
-		//}
-		////cout<< "MPI_RCV"<<endl;
-		//if(myrank%cb.px < incr_col) {
-		//	cols++;
-		//}
-		//cout<<"Rank = "<<myrank<<endl;
-	//	cout<<"Rows = "<<rows<<" "<<"Cols = "<<cols<<endl;
 		double* buffer_E_prev_tmp = (double*)malloc(rows1*cols1*sizeof(double));	
 		double* buffer_R_tmp = (double*)malloc(rows1*cols1*sizeof(double));	
 		double* buffer_E_tmp = (double*)malloc(rows1*cols1*sizeof(double));	
 		MPI_Recv(buffer_E_prev_tmp,rows1*cols1,MPI_DOUBLE,0,0,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 		MPI_Recv(buffer_R_tmp,rows1*cols1,MPI_DOUBLE,0,1,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
 		MPI_Recv(buffer_E_tmp,rows1*cols1,MPI_DOUBLE,0,2,MPI_COMM_WORLD,MPI_STATUS_IGNORE);
-		//ar.m = rows + 2;
-		//ar.n = cols + 2;
-		//cout<<"m = "<<ar.m-2<<" "<<"n = "<<ar.n-2<<endl;
 
 			for(int ii = 0 ; ii < rows1 ; ii+=1) {
 				for(int jj = 0 ; jj < cols1 ; jj+=1) {
@@ -259,17 +250,16 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 					ar.E_prev[(ii+1)*ar.n+jj+1] = buffer_E_prev_tmp[ii*cols1+jj];
 					ar.R[(ii+1)*ar.n+jj+1] = buffer_R_tmp[ii*cols1+jj];
 					ar.E[(ii+1)*ar.n+jj+1] = buffer_E_tmp[ii*cols1+jj];
-					if(myrank == 5) {
+}
+	}	
+
+					if(myrank == 1) {
 					//cout << "buffer_E_prev_tmp = "<<buffer_E_prev_tmp[ii*cols+jj]<<endl;
+					cout<<"rows = "<<rows1<<"cols = "<<cols1<<endl;
+					printMat("ar.E_prev",ar.E_prev,rows1,cols1);			
 					//cout << "E_prev = "<<ar.E_prev[(ii+1)*ar.n+jj+1]<<endl;
 				}
 			}
-}
-		//MPI_Wait(buffer_E_prev,sizeof(double),MPI_DOUBLE,rank,0,MPI_COMM_WORLD);
-		//MPI_Wait(buffer_R,sizeof(double),MPI_DOUBLE,rank,1,MPI_COMM_WORLD);
-		//MPI_Wait(buffer_E,sizeof(double),MPI_DOUBLE,rank,2,MPI_COMM_WORLD);
-	}	
-
 #endif
 
 //#ifdef _MPI_
