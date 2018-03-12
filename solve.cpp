@@ -26,6 +26,26 @@ using namespace std;
 #define R(ii,jj) R[(ii)*(n+2)+jj]
 #define E(ii,jj) E[(ii)*(n+2)+jj]
 
+void printMat1(const char mesg[], double *E, int m, int n){
+	int i;
+#if 0
+	if (m>8)
+		return;
+#else
+	if (m>34)
+		return;
+#endif
+	printf("%s\n",mesg);
+	for (i=0; i < (m+2)*(n+2); i++){
+		int rowIndex = i / (n+2);
+		int colIndex = i % (n+2);
+		if ((colIndex>0) && (colIndex<n+1))
+			if ((rowIndex > 0) && (rowIndex < m+1))
+				printf("%6.3f ", E[i]);
+		if (colIndex == n+1)
+			printf("\n");
+	}
+}
 void repNorms(double l2norm, double mx, double dt, int m,int n, int niter, int stats_freq);
 void stats(double *E, int m, int n, double *_mx, double *sumSq);
 
@@ -67,23 +87,23 @@ void solve(double **_E, double **_E_prev, double *R, double alpha, double dt, Pl
  int m = ar.m-2, n=ar.n-2;
  //cout<<" m1 is "<< m1<<endl;
  //cout<<" n1 is "<< n1<<endl;
+
  int innerBlockRowStartIndex = (n+2)+1;
  int innerBlockRowEndIndex = (((m+2)*(n+2) - 1) - (n)) - (n+2);
  int rank =0, np=1;
 #ifdef _MPI_
  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 #endif
+//if (rank ==3)
+//{ cout<<" rank initial is" << rank <<endl;
+//printMat1("printing initial eprev",E_prev,m,n);}
+
  int x1=rank%cb.px;
  int y1=rank/cb.px;
  //m = cb.m / cb.py + (y1 < (cb.m % cb.py));
  //n = cb.n / cb.px + (x1 < (cb.n % cb.px));
 
- cout<<" rank is "<< rank<<endl;
- cout<<" m is "<< m<<endl;
- cout<<" n is "<< n<<endl;
  int m1 = ar.m-2, n1=ar.n-2;
- cout<<" m1 is "<< m1<<endl;
- cout<<" n1 is "<< n1<<endl;
  // We continue to sweep over the mesh until the simulation has reached
  // the desired number of iterations
   for (niter = 0; niter < cb.niters; niter++){
@@ -110,6 +130,8 @@ void solve(double **_E, double **_E_prev, double *R, double alpha, double dt, Pl
     */
     
     // 4 FOR LOOPS set up the padding needed for the boundary conditions
+
+    //printMat1("printing initial eprev",E_prev,m,n);
     int i,j;
 
     // Fills in the TOP Ghost Cells
@@ -143,6 +165,9 @@ void solve(double **_E, double **_E_prev, double *R, double alpha, double dt, Pl
     }
     }
 
+//if (rank==3)
+//{printMat1("printing eprev after padding",E_prev,m,n);
+//cout<<"rank padding is"<<rank<<endl;}
 //////////////////////////////////////////////////////////////////////////////
 
 #define FUSED 1
@@ -240,6 +265,15 @@ count++;
 if(y1!=0)
 {
 //up
+
+//if (rank==3)
+//{
+//cout<<"bufertopsen";
+//for (i=0;i<n;i++)
+//	cout<<buffer_top_sen[i]<<" ";
+//cout<<endl;
+//}
+
 MPI_Isend(buffer_top_sen, n, MPI_DOUBLE, rank - cb.px, 0,MPI_COMM_WORLD , send+count);
 MPI_Irecv(buffer_top_rec, n, MPI_DOUBLE, rank - cb.px, 0,MPI_COMM_WORLD , rec+count);
 count++;
@@ -271,7 +305,7 @@ MPI_Waitall(count,rec,stat);
  if (x1!=cb.px-1)
 { int j=0;
    for(i=n+3+n; i<(m+1)*(n+2); i+=n+2)
- {    		E_prev[i]=buffer_right_sen[j];
+ {    		E_prev[i]=buffer_right_rec[j];
 	j++;
 }
 }
@@ -279,8 +313,8 @@ MPI_Waitall(count,rec,stat);
 //Put top row of matrix in send up
  if (y1!=0)
 { int j=0;
-   for(i=1; i<(n+2); i++)
-{     		E_prev[i]= buffer_right_sen[j];
+   for(i=1; i<(n+1); i++)
+{     		E_prev[i]= buffer_top_rec[j];
 	j++; 
 }
 }
@@ -290,7 +324,7 @@ MPI_Waitall(count,rec,stat);
 { int j=0;
    for(i=(m+1)*(n+2)+1; i<(m+1)*(n+2)+n+1; i++)
 {
-     		E_prev[i]=buffer_right_sen[j];
+     		E_prev[i]=buffer_bottom_rec[j];
 	j++;
 }
 }
@@ -299,10 +333,21 @@ MPI_Waitall(count,rec,stat);
 }
 #endif
 
+//if (rank==1)
+//{
+//cout<<"rank final is"<<rank<<endl;
+//printMat1("printing final eprev",E_prev,m,n);
+//}
 
 
 #ifdef FUSED
     // Solve for the excitation, a PDE
+
+if (rank==0)
+{
+cout<<"rank final is"<<rank<<endl;
+printMat1("printing eprev before op",E_prev,m,n);
+}
     for(j = innerBlockRowStartIndex; j <= innerBlockRowEndIndex; j+=(n+2)) {
         E_tmp = E + j;
 	E_prev_tmp = E_prev + j;
@@ -378,7 +423,21 @@ else
 #endif
   L2 = L2Norm(fsumSq);
 
+if (rank==0)
+{
+cout<<"rank final is"<<rank<<endl;
+printMat1("printing final eprev",E_prev,m,n);
+}
+
+#ifdef _MPI_
+free(ar.R);
+free(ar.E);
+free(ar.E_prev);
+#else
+
   // Swap pointers so we can re-use the arrays
   *_E = E;
   *_E_prev = E_prev;
+
+#endif
 }
