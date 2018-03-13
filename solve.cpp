@@ -94,15 +94,8 @@ void solve(double **_E, double **_E_prev, double *R, double alpha, double dt, Pl
 #ifdef _MPI_
  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 #endif
-//if (rank ==3)
-//{ cout<<" rank initial is" << rank <<endl;
-//printMat1("printing initial eprev",E_prev,m,n);}
-
  int x1=rank%cb.px;
  int y1=rank/cb.px;
- //m = cb.m / cb.py + (y1 < (cb.m % cb.py));
- //n = cb.n / cb.px + (x1 < (cb.n % cb.px));
-
  int m1 = ar.m-2, n1=ar.n-2;
  // We continue to sweep over the mesh until the simulation has reached
  // the desired number of iterations
@@ -166,25 +159,17 @@ void solve(double **_E, double **_E_prev, double *R, double alpha, double dt, Pl
     }
     }
 
-//if (rank==3)
-//{printMat1("printing eprev after padding",E_prev,m,n);
-//cout<<"rank padding is"<<rank<<endl;}
 //////////////////////////////////////////////////////////////////////////////
 
 #define FUSED 1
 
-if(!cb.noComm) {
 #ifdef _MPI_
 
  int N=n;
  int M=m;
- double* buffer_top_sen = (double*)malloc(N*sizeof(double));
- double* buffer_bottom_sen = (double*)malloc(N*sizeof(double));
  double* buffer_right_sen = (double*)malloc(M*sizeof(double));
  double* buffer_left_sen = (double*)malloc(M*sizeof(double));
  
- double* buffer_top_rec = (double*)malloc(N*sizeof(double));
- double* buffer_bottom_rec = (double*)malloc(N*sizeof(double));
  double* buffer_right_rec = (double*)malloc(M*sizeof(double));
  double* buffer_left_rec = (double*)malloc(M*sizeof(double));
 
@@ -211,85 +196,91 @@ if ((cb.px>1) || (cb.py>1))
 }
 
 
-//Put top row of matrix in send up
- if (y1!=0)
-{ int j=0;
-   for(i=n+3; i<(2*n+3); i++)
-     {		buffer_top_sen[j] =E_prev[i];
-       j++;
-     }
-}
-
- 
-//Put bottom row of matrix in send down
- if (y1!=cb.py-1)
-{ int j=0;
-   for(i=m*(n+2)+1; i<(m)*(n+2)+n+1; i++)
-   {  		buffer_bottom_sen[j] =E_prev[i];
-   		j++;
-}
-}
-
-
-
 //MPI sending and receiving
 
-MPI_Request send[4];
-MPI_Request rec[4];
-MPI_Status stat[4];
-int count=0;
+MPI_Request sendleft;
+MPI_Request sendright;
+MPI_Request sendtop;
+MPI_Request sendbot;
+MPI_Request recleft;
+MPI_Request recright;
+MPI_Request rectop;
+MPI_Request recbot;
+//int count=0;
 if(x1!=0)
 {
+
+if(!cb.noComm) {
 //left
-MPI_Isend(buffer_left_sen, m, MPI_DOUBLE, rank - 1, 0,MPI_COMM_WORLD , send + count);
-//printmat("leftbuffer", buffer_left_sen,1,m);
-/*cout<<"buferleftsen";
-for (i=0;i<m;i++)
-	cout<<buffer_left_sen[i]<<" ";
-cout<<endl;*/
-MPI_Irecv(buffer_left_rec, m, MPI_DOUBLE, rank - 1, 0,MPI_COMM_WORLD , rec+ count);
-count++;
+MPI_Isend(buffer_left_sen, m, MPI_DOUBLE, rank - 1, 0,MPI_COMM_WORLD , &(sendleft));
+MPI_Irecv(buffer_left_rec, m, MPI_DOUBLE, rank - 1, 0,MPI_COMM_WORLD , &(recleft));
+}
 }
 
 
 if(x1!=cb.px-1)
 {
+
+if(!cb.noComm) {
 //right
-MPI_Isend(buffer_right_sen, m, MPI_DOUBLE, rank + 1, 0,MPI_COMM_WORLD , send+count);
-MPI_Irecv(buffer_right_rec, m, MPI_DOUBLE, rank + 1, 0,MPI_COMM_WORLD , rec+count);
-count++;
+MPI_Isend(buffer_right_sen, m, MPI_DOUBLE, rank + 1, 0,MPI_COMM_WORLD , &(sendright));
+MPI_Irecv(buffer_right_rec, m, MPI_DOUBLE, rank + 1, 0,MPI_COMM_WORLD , &(recright));
+}
 }
 
 if(y1!=0)
 {
-//up
 
-//if (rank==3)
-//{
-//cout<<"bufertopsen";
-//for (i=0;i<n;i++)
-//	cout<<buffer_top_sen[i]<<" ";
-//cout<<endl;
-//}
-
-MPI_Isend(buffer_top_sen, n, MPI_DOUBLE, rank - cb.px, 0,MPI_COMM_WORLD , send+count);
-MPI_Irecv(buffer_top_rec, n, MPI_DOUBLE, rank - cb.px, 0,MPI_COMM_WORLD , rec+count);
-count++;
+if(!cb.noComm) {
+MPI_Isend(E_prev+n+3, n, MPI_DOUBLE, rank - cb.px, 0,MPI_COMM_WORLD , &(sendtop));
+MPI_Irecv(E_prev+1, n, MPI_DOUBLE, rank - cb.px, 0,MPI_COMM_WORLD , &(rectop));
+}
 }
 
 
 if(y1!=cb.py-1)
 {
 //down
-MPI_Isend(buffer_bottom_sen, n, MPI_DOUBLE, rank + cb.px, 0,MPI_COMM_WORLD , send+count);
-MPI_Irecv(buffer_bottom_rec, n, MPI_DOUBLE, rank + cb.px, 0,MPI_COMM_WORLD , rec+count);
-count++;
+
+if(!cb.noComm) {
+MPI_Isend(E_prev+ m*(n+2)+1, n, MPI_DOUBLE, rank + cb.px, 0,MPI_COMM_WORLD , &(sendbot));
+MPI_Irecv(E_prev+ (m+1)*(n+2)+1, n, MPI_DOUBLE, rank + cb.px, 0,MPI_COMM_WORLD , &(recbot));
+}}
+
+
+if(x1!=0)
+{
+
+if(!cb.noComm) {
+MPI_Wait(&(recleft),MPI_STATUS_IGNORE);
+MPI_Wait(&(sendleft),MPI_STATUS_IGNORE);
+}}
+
+
+if(x1!=cb.px-1)
+{
+
+if(!cb.noComm) {
+MPI_Wait(&(recright),MPI_STATUS_IGNORE);
+MPI_Wait(&(sendright),MPI_STATUS_IGNORE);
+}}
+
+if(y1!=0)
+{
+
+if(!cb.noComm) {
+MPI_Wait(&(rectop),MPI_STATUS_IGNORE);
+MPI_Wait(&(sendtop),MPI_STATUS_IGNORE);
+}}
+
+if(y1!=cb.py-1)
+{
+
+if(!cb.noComm) {
+MPI_Wait(&(recbot),MPI_STATUS_IGNORE);
+MPI_Wait(&(sendbot),MPI_STATUS_IGNORE);
 }
-
-
-MPI_Waitall(count,rec,stat);
-
-
+}
  if (x1!=0)
   {
 //left
@@ -307,44 +298,12 @@ MPI_Waitall(count,rec,stat);
 	j++;
 }
 }
-
-//Put top row of matrix in send up
- if (y1!=0)
-{ int j=0;
-   for(i=1; i<(n+1); i++)
-{     		E_prev[i]= buffer_top_rec[j];
-	j++; 
-}
-}
- 
-//Put bottom row of matrix in send down
- if (y1!=cb.py-1)
-{ int j=0;
-   for(i=(m+1)*(n+2)+1; i<(m+1)*(n+2)+n+1; i++)
-{
-     		E_prev[i]=buffer_bottom_rec[j];
-	j++;
-}
-}
-
-
 }
 #endif
-}
-//if (rank==1)
-//{
-//cout<<"rank final is"<<rank<<endl;
-//printMat1("printing final eprev",E_prev,m,n);
-//}
 
 #ifdef FUSED
     // Solve for the excitation, a PDE
 
-if (rank==0)
-{
-//cout<<"rank final is"<<rank<<endl;
-//printMat1("printing eprev before op",E_prev,m,n);
-}
     for(j = innerBlockRowStartIndex; j <= innerBlockRowEndIndex; j+=(n+2)) {
         E_tmp = E + j;
 	E_prev_tmp = E_prev + j;
@@ -422,11 +381,6 @@ else
 #endif
   L2 = L2Norm(fsumSq);
 
-if (rank==0)
-{
-//cout<<"rank final is"<<rank<<endl;
-//printMat1("printing final eprev",E_prev,m,n);
-}
 
 #ifdef _MPI_
 free(ar.R);
