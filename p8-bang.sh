@@ -72,9 +72,9 @@ date
 # Commands go here
 
 mpirun -np 1 ./apf -n 400 -i 2000 -x 1 -y 1
-mpirun -np 2 ./apf -n 400 -i 2000 -x 1 -y 2
-mpirun -np 4 ./apf -n 400 -i 2000 -x 1 -y 4
-mpirun -np 8 ./apf -n 400 -i 2000 -x 1 -y 8
-mpirun -np 2 ./apf -n 400 -i 2000 -x 1 -y 2 -k
-mpirun -np 4 ./apf -n 400 -i 2000 -x 1 -y 4 -k
-mpirun -np 8 ./apf -n 400 -i 2000 -x 1 -y 8 -k
+mpirun -np 2 ./apf -n 400 -i 2000 -x 2 -y 1
+mpirun -np 4 ./apf -n 400 -i 2000 -x 4 -y 1
+mpirun -np 8 ./apf -n 400 -i 2000 -x 8 -y 1
+#mpirun -np 2 ./apf -n 400 -i 2000 -x 1 -y 2 -k
+#mpirun -np 4 ./apf -n 400 -i 2000 -x 1 -y 4 -k
+mpirun -np 8 ./apf -n 400 -i 2000 -x 8 -y 1 -k

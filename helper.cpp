@@ -141,7 +141,8 @@ void init (double *E,double *E_prev,double *R,int m,int n){
 	R = R_copy + cols;
 	E = E_copy + cols;
 	}
-	else { 
+	else {
+	incr_px = cb.px;		//Added 
 	incr_py--;
 	if(incr_py != 0) {
 		E_copy = E_copy + rows*(n+2);
