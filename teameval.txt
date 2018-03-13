@@ -13,31 +13,37 @@ If you worked alone leave column B blank
 
 (1) List the names of your team members:
 
-A:
+A: Debosmit Majumder
 
  
-B:
+B: Unnikrishnan Sivaprasad
 
  
  
 (2) Estimate how much time each team member devoted to this project, in HOURS.
 
   	                        A 	       B
-meetings 	  	  	 
-coding 	  	  	 
-writeup 	  	  	 
-planning (alone) 	  	  	 
-total (including meetings) 	  	  	 
+meetings 	  	        5		5	 
+coding 	  	  	 	30		30
+writeup 			4		4	  	  	 
+planning (alone) 	       	2		2  	 
+total (including meetings) 	41		41  	  	 
 
 
 (3) Discuss the following.
 (a) If you worked in a team, what were the major responsibilities
     of each team member?
-(b) Did you complete the assignment?
+	Debosmit coded the distribution and Unnikrishnan helped in debugging.
+Unnikrishnan coded the MPI implementation and debosmit helped in debugging
+(b) Did you complete the assignment? Yes
 (c) What were your major strengths and weaknesses in doing this
     assignment (individually or in a team)?
     If in a team, also discuss how your team worked together.
+     We spent a lot of time implementing the distribution. We had a lot of
+difficulty in understanding the question.
 (d) What  lessons did you learn from these events.
+Both of us are from the ECE department and have ECE background. This helped us
+improve the coding skills.
 (e) If in a team, whether and how you plan to change the way
     your work together .
 (f) Anything else that comes to mind.
